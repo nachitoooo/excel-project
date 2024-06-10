@@ -1,8 +1,9 @@
 import sys
 import pandas as pd
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, 
-                             QTableWidget, QTableWidgetItem, QMessageBox, QHBoxLayout, QMenu, QAction, QInputDialog)
+                             QTableWidget, QTableWidgetItem, QMessageBox, QHBoxLayout, QMenu, QLabel, QAction, QInputDialog)
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QFont
 
 class ExcelViewerApp(QWidget):
     def __init__(self):
@@ -19,6 +20,18 @@ class ExcelViewerApp(QWidget):
         self.setGeometry(100, 100, 1200, 600)
 
         layout = QVBoxLayout()
+
+
+
+
+        logo_layout = QHBoxLayout()
+        logo_label = QLabel(self)
+        pixmap = QPixmap('logo.png')  # Ruta del logo de la empresa
+        logo_label.setPixmap(pixmap)
+        logo_label.setFixedSize(200, 100)
+        logo_layout.addWidget(logo_label)
+        logo_layout.addStretch()
+        layout.addLayout(logo_layout)
 
         button_layout = QHBoxLayout()
         

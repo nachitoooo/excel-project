@@ -1,9 +1,9 @@
 import sys
 import pandas as pd
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, 
-                             QTableView, QMessageBox, QHBoxLayout, QMenu, QAction, QInputDialog, QLabel, QGroupBox)
+                             QTableView, QMessageBox, QHBoxLayout, QMenu, QAction, QInputDialog, QLabel, QGroupBox, QHeaderView)
 from PyQt5.QtCore import Qt, QAbstractTableModel
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QFont
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -50,7 +50,7 @@ class ExcelViewerApp(QWidget):
         # Logo
         logo_layout = QHBoxLayout()
         logo_label = QLabel(self)
-        pixmap = QPixmap('logo.png')  # Ruta del logo de la empresa
+        pixmap = QPixmap('path/to/your/logo.png')  # Ruta del logo de la empresa
         logo_label.setPixmap(pixmap)
         logo_label.setFixedSize(100, 100)
         logo_layout.addWidget(logo_label)
@@ -87,17 +87,22 @@ class ExcelViewerApp(QWidget):
         layout.addLayout(button_layout)
 
         # Tablas
+        self.table_layout = QHBoxLayout()
         self.table1 = QTableView(self)
         self.table1.setDragEnabled(True)
         self.table1.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table1.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.table1))
-        layout.addWidget(self.table1)
+        self.table1.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_layout.addWidget(self.table1)
 
         self.table2 = QTableView(self)
         self.table2.setAcceptDrops(True)
         self.table2.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table2.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.table2))
-        layout.addWidget(self.table2)
+        self.table2.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_layout.addWidget(self.table2)
+
+        layout.addLayout(self.table_layout)
 
         # Gráficos
         self.chart_group = QGroupBox("Generación de Gráficos")
@@ -114,10 +119,28 @@ class ExcelViewerApp(QWidget):
         layout.addWidget(self.chart_group)
 
         self.setLayout(layout)
+        self.setStyleSheet("""
+            QWidget {
+                font-family: Arial, sans-serif;
+            }
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+            QTableView {
+                gridline-color: #dcdcdc;
+            }
+        """)
 
     def load_file(self, file_number):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Abrir Archivo Excel", "", "Excel Files (.xlsx *.xls);;All Files ()", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Abrir Archivo Excel", "", "Excel Files (*.xlsx *.xls);;All Files (*)", options=options)
         if not file_path:
             return
 
@@ -178,7 +201,7 @@ class ExcelViewerApp(QWidget):
     def save_file(self):
         self.update_dataframe_from_table(self.table2, self.df2)
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(self, "Guardar Archivo Excel", "", "Excel Files (.xlsx *.xls);;All Files ()", options=options)
+        file_path, _ = QFileDialog.getSaveFileName(self, "Guardar Archivo Excel", "", "Excel Files (*.xlsx *.xls);;All Files (*)", options=options)
         if not file_path:
             return
 
