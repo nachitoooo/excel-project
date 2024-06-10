@@ -1,35 +1,8 @@
 import sys
 import pandas as pd
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, 
-                             QTableView, QMessageBox, QHBoxLayout, QMenu, QAction, QInputDialog, QLabel, QGroupBox)
-from PyQt5.QtCore import Qt, QAbstractTableModel
-from PyQt5.QtGui import QPixmap
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
-class PandasModel(QAbstractTableModel):
-    def __init__(self, df=pd.DataFrame(), parent=None):
-        QAbstractTableModel.__init__(self, parent)
-        self._df = df
-
-    def rowCount(self, parent=None):
-        return self._df.shape[0]
-
-    def columnCount(self, parent=None):
-        return self._df.shape[1]
-
-    def data(self, index, role=Qt.DisplayRole):
-        if index.isValid():
-            if role == Qt.DisplayRole:
-                return str(self._df.iat[index.row(), index.column()])
-        return None
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self._df.columns[section]
-        if orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return str(self._df.index[section])
-        return None
+                             QTableWidget, QTableWidgetItem, QMessageBox, QHBoxLayout, QMenu, QAction, QInputDialog)
+from PyQt5.QtCore import Qt
 
 class ExcelViewerApp(QWidget):
     def __init__(self):
@@ -43,21 +16,10 @@ class ExcelViewerApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Visor de Excel Mejorado')
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1200, 600)
 
         layout = QVBoxLayout()
-        
-        # Logo
-        logo_layout = QHBoxLayout()
-        logo_label = QLabel(self)
-        pixmap = QPixmap('logo.png')  # Ruta del logo de la empresa
-        logo_label.setPixmap(pixmap)
-        logo_label.setFixedSize(100, 100)
-        logo_layout.addWidget(logo_label)
-        logo_layout.addStretch()
-        layout.addLayout(logo_layout)
 
-        # Botones
         button_layout = QHBoxLayout()
         
         self.load_button_1 = QPushButton('Adjuntar Archivo EXCEL - 1', self)
@@ -86,38 +48,23 @@ class ExcelViewerApp(QWidget):
 
         layout.addLayout(button_layout)
 
-        # Tablas
-        self.table1 = QTableView(self)
+        self.table1 = QTableWidget(self)
         self.table1.setDragEnabled(True)
         self.table1.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table1.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.table1))
         layout.addWidget(self.table1)
 
-        self.table2 = QTableView(self)
+        self.table2 = QTableWidget(self)
         self.table2.setAcceptDrops(True)
         self.table2.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table2.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.table2))
         layout.addWidget(self.table2)
 
-        # Gráficos
-        self.chart_group = QGroupBox("Generación de Gráficos")
-        chart_layout = QVBoxLayout()
-        
-        self.plot_button = QPushButton('Generar Gráfico', self)
-        self.plot_button.clicked.connect(self.plot_graph)
-        chart_layout.addWidget(self.plot_button)
-        
-        self.canvas = FigureCanvas(Figure())
-        chart_layout.addWidget(self.canvas)
-        
-        self.chart_group.setLayout(chart_layout)
-        layout.addWidget(self.chart_group)
-
         self.setLayout(layout)
 
     def load_file(self, file_number):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Abrir Archivo Excel", "", "Excel Files (.xlsx *.xls);;All Files ()", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Abrir Archivo Excel", "", "Excel Files (*.xlsx *.xls);;All Files (*)", options=options)
         if not file_path:
             return
 
@@ -135,16 +82,21 @@ class ExcelViewerApp(QWidget):
             QMessageBox.critical(self, "Error", f"No se pudo cargar el archivo: {e}")
 
     def display_dataframe(self, df, table):
-        model = PandasModel(df)
-        table.setModel(model)
+        table.setRowCount(df.shape[0])
+        table.setColumnCount(df.shape[1])
+        table.setHorizontalHeaderLabels(df.columns)
+
+        for i in range(df.shape[0]):
+            for j in range(df.shape[1]):
+                table.setItem(i, j, QTableWidgetItem(str(df.iat[i, j])))
 
     def copy_selection(self):
-        selected_indexes = self.table1.selectedIndexes()
-        if not selected_indexes:
+        selected_items = self.table1.selectedItems()
+        if not selected_items:
             QMessageBox.warning(self, "Advertencia", "Debe seleccionar al menos una celda.")
             return
 
-        self.copied_data = [(index.row(), index.column(), index.data()) for index in selected_indexes]
+        self.copied_data = [(item.row(), item.column(), item.text()) for item in selected_items]
         QMessageBox.information(self, "Éxito", "Celdas copiadas correctamente")
 
     def paste_selection(self):
@@ -178,7 +130,7 @@ class ExcelViewerApp(QWidget):
     def save_file(self):
         self.update_dataframe_from_table(self.table2, self.df2)
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(self, "Guardar Archivo Excel", "", "Excel Files (.xlsx *.xls);;All Files ()", options=options)
+        file_path, _ = QFileDialog.getSaveFileName(self, "Guardar Archivo Excel", "", "Excel Files (*.xlsx *.xls);;All Files (*)", options=options)
         if not file_path:
             return
 
@@ -192,12 +144,19 @@ class ExcelViewerApp(QWidget):
         if df is None:
             return
 
-        new_df = df.copy()
-        for i in range(new_df.shape[0]):
-            for j in range(new_df.shape[1]):
-                index = table.model().index(i, j)
-                new_df.iat[i, j] = table.model().data(index)
+        # Verificar si el DataFrame tiene las mismas dimensiones que la tabla
+        if table.rowCount() != df.shape[0] or table.columnCount() != df.shape[1]:
+            # Ajustar el DataFrame a las dimensiones de la tabla
+            new_df = pd.DataFrame(index=range(table.rowCount()), columns=df.columns[:table.columnCount()])
+        else:
+            new_df = df
 
+        for i in range(table.rowCount()):
+            for j in range(table.columnCount()):
+                item = table.item(i, j)
+                new_df.iat[i, j] = item.text() if item else ""
+
+        # Actualizar el DataFrame correspondiente
         if table == self.table1:
             self.df1 = new_df
         else:
@@ -251,48 +210,62 @@ class ExcelViewerApp(QWidget):
                 self.df2 = df
 
     def edit_cell(self, table):
-        index = table.currentIndex()
-        if not index.isValid():
+        row = table.currentRow()
+        col = table.currentColumn()
+        if row < 0 or col < 0:
             QMessageBox.warning(self, "Advertencia", "Seleccione una celda para editar.")
             return
 
-        current_value = table.model().data(index)
+        current_value = table.item(row, col).text()
         new_value, ok = QInputDialog.getText(self, 'Editar Celda', 'Nuevo valor:', text=current_value)
         if ok:
-            table.model().setData(index, new_value)
+            table.setItem(row, col, QTableWidgetItem(new_value))
             df = self.get_df(table)
-            df.iat[index.row(), index.column()] = new_value
+            df.iat[row, col] = new_value
 
     def delete_row_from_table(self, table):
-        index = table.currentIndex()
-        if not index.isValid():
+        row = table.currentRow()
+        if row < 0:
             QMessageBox.warning(self, "Advertencia", "Seleccione una fila para eliminar.")
             return
 
+        table.removeRow(row)
         df = self.get_df(table)
-        df.drop(index.row(), inplace=True)
+        df.drop(df.index[row], inplace=True)
         df.reset_index(drop=True, inplace=True)
         self.display_dataframe(df, table)
 
     def delete_column_from_table(self, table):
-        index = table.currentIndex()
-        if not index.isValid():
+        col = table.currentColumn()
+        if col < 0:
             QMessageBox.warning(self, "Advertencia", "Seleccione una columna para eliminar.")
             return
 
         df = self.get_df(table)
-        df.drop(df.columns[index.column()], axis=1, inplace=True)
+        df.drop(df.columns[col], axis=1, inplace=True)
         self.display_dataframe(df, table)
 
-    def plot_graph(self):
-        if self.df1 is None:
-            QMessageBox.critical(self, "Error", "Debe cargar el archivo primero.")
-            return
+    def dragEnterEvent(self, event):
+        event.accept()
 
-        self.canvas.figure.clear()
-        ax = self.canvas.figure.add_subplot(111)
-        self.df1.plot(ax=ax)
-        self.canvas.draw()
+    def dragMoveEvent(self, event):
+        event.accept()
+
+    def dropEvent(self, event):
+        if event.source() == self.table1:
+            selected_items = self.table1.selectedItems()
+            if not selected_items:
+                return
+
+            for item in selected_items:
+                row, col = item.row(), item.column()
+                text = item.text()
+                self.df2.iat[row, col] = text
+
+            self.display_dataframe(self.df2, self.table2)
+            event.accept()
+        else:
+            event.ignore()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
